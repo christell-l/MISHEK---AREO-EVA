@@ -1,0 +1,342 @@
+%=====================================================================
+%  REPORT: AREO EVA — Plan a Mars Walk (Research Report format)
+%=====================================================================
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,total={170mm,257mm},left=20mm,top=20mm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{titling}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\IfFileExists{cmbright.sty}{\usepackage{cmbright}}{\usepackage{lmodern}\renewcommand{\familydefault}{\sfdefault}}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{xparse}
+\usepackage[round,authoryear]{natbib}
+\usepackage[hidelinks]{hyperref}
+\urlstyle{same}
+\usepackage{amsmath}
+
+%=========================================
+% DOCUMENT INFORMATION
+%=========================================
+\newcommand{\universidad}{Universidad del Valle de Guatemala}
+\newcommand{\facultad}{Facultad de Ingeniería Civil}
+\newcommand{\curso}{NASA Space Apps Challenge 2026 --- ``Plan a Mars Walk'' Challenge}
+\newcommand{\titulocorto}{AREO EVA}
+\newcommand{\subtitulo}{Safe Martian EVA Route Planning Through Spatial Analysis in QGIS}
+\newcommand{\grupo}{AREO EVA Team}
+\newcommand{\logo}{logo_uvg.png}
+\newcommand{\integrantes}{%
+    Christell García (Student ID 24958)}
+
+\title{\titulocorto:\\ \subtitulo}
+\author{\integrantes}
+\date{November 2026}
+
+%=========================================
+% LANGUAGE AND REFERENCES (APA 7)
+%=========================================
+\renewcommand{\figurename}{Figure}
+\renewcommand{\tablename}{Table}
+\renewcommand{\refname}{References}
+\renewcommand{\contentsname}{Contents}
+\setlength{\bibhang}{1.27cm}
+\setlength{\bibsep}{4pt}
+\renewcommand{\bibfont}{\raggedright}
+\bibpunct{(}{)}{;}{a}{,}{,}
+
+%=========================================
+% CODE (listings)
+%=========================================
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstset{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true, captionpos=b, keepspaces=true,
+    numbers=left, numbersep=5pt,
+    showspaces=false, showstringspaces=false, showtabs=false,
+    tabsize=4
+}
+\lstdefinestyle{estiloPython}{
+    language=Python,
+    keywordstyle=\color{blue}\bfseries,
+    morekeywords={self, cls, True, False, None}
+}
+
+%=========================================
+% FIGURES
+%=========================================
+\NewDocumentCommand{\figura}{m m m m O{0.85}}{%
+  \begin{figure}[H]
+    \centering
+    \IfFileExists{#1}{\includegraphics[width=#5\textwidth]{#1}}%
+      {\fbox{\parbox[c][5.5cm][c]{0.8\textwidth}{\centering Figure placeholder\\[0.2cm]\texttt{\detokenize{#1}}}}}
+    \caption{#3}
+    \label{#2}
+    \caption*{\textbf{Source:} #4}
+  \end{figure}}
+
+%=========================================
+% HEADERS
+%=========================================
+\setlength{\headheight}{13pt}
+\fancypagestyle{plain}{%
+    \fancyhf{}
+    \fancyhead[L]{\titulocorto}
+    \fancyhead[R]{\grupo}
+    \fancyfoot[L]{\thepage}}
+\pagestyle{plain}
+
+\begin{document}
+
+%=========================================
+% TITLE PAGE
+%=========================================
+\begin{titlepage}
+    \centering
+    {\scshape\LARGE \universidad\par}
+    {\scshape\Large \facultad\par}
+    {\large \curso\par}
+    \vspace{1.5cm}
+    \IfFileExists{\logo}{\includegraphics[width=0.35\textwidth]{\logo}\par}{}
+    \vspace{1cm}
+    {\huge\bfseries \titulocorto\par}
+    \vspace{0.5cm}
+    {\Large \subtitulo\par}
+    \vspace{1.5cm}
+    {\itshape Team members:\par}
+    \vspace{0.3cm}
+    \integrantes
+    \vfill
+    {\large \thedate\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+%=========================================
+% INTRODUCTION
+%=========================================
+\section*{Introduction}
+\addcontentsline{toc}{section}{Introduction}
+
+The first astronauts on Mars will need pedestrian-scale maps that integrate the best available information from NASA science missions. Unlike global viewers such as Mars Trek, an extravehicular activity (EVA) requires hyperlocal mapping: every terrain pixel can mean the difference between a safe step and a fall while wearing a pressurized 150~kg suit. This report documents the design of an EVA route along the western rim of Jezero Crater using a reproducible QGIS workflow. It integrates four data layers from three orbital instruments \citep{usgs2024,mcewen2007} and determines the optimal route between a base (A) and a science target (B) using cost-surface and least-cost-path analysis, subject to explicit biomechanical and safety constraints.
+
+\newpage
+
+%=========================================
+% 1. MISSION AREA
+%=========================================
+\section{Mission Area and Science Target}
+
+The mission is located along the western rim of Jezero Crater (Neretva Vallis area, $\sim$18.27$^{\circ}$N, 77.15$^{\circ}$E), within the coverage of the HiRISE \emph{Mars Sample Return Terrain Relative Navigation} v003 mosaic \citep{usgs2024}. The mosaic was generated for MSR mission operations and rigorously aligned to the CTX reference for the Perseverance site. The area of interest (AOI) covers $6.0 \times 6.5$~km in Mars Equirectangular projection (Mars\_2000 sphere, $R = 3\,396\,190$~m), with elevations referenced to the Martian geoid (MOLA).
+
+The science target is the sampling of ejecta blocks from a \textbf{fresh crater approximately $\sim$2~km in diameter}: the impact excavated material from beneath the ancient terrain of the Jezero rim and deposited it on the surface, acting as a ``natural drill core.'' Point B is located on the southwestern edge of the ejecta blanket, allowing access to deep lithologies without entering the crater cavity, whose interior slopes ($>30\,\%$) are impassable.
+
+\newpage
+
+%=========================================
+% 2. DATA
+%=========================================
+\section{Data Used}
+
+\begin{table}[H]
+\centering
+\caption{Data layers integrated into the analysis (four data types, three instruments).}
+\label{tab:datos}
+\small
+\begin{tabular}{p{3.6cm} p{5.2cm} p{2.2cm} p{4.2cm}}
+\toprule
+\textbf{Layer} & \textbf{Source} & \textbf{Resolution} & \textbf{Role in the analysis} \\
+\midrule
+DTM (topography) & MRO/HiRISE, MSR TRN mosaic & 1 m/px & Slope, roughness, route \\
+Orthomosaic (optical) & MRO/HiRISE & 0.25 m/px & Visual basemap, obstacle QA \\
+Day/night thermal IR & Mars Odyssey/THEMIS v2 & 100 m/px & Soil firmness (thermal inertia) \\
+FOM \emph{Confidence} & USGS (DTM quality) & 1 m/px & Unreliable pixels = risk \\
+\bottomrule
+\end{tabular}
+\caption*{\textbf{Source:} Prepared by the authors based on \citet{usgs2024} and \citet{usgs2018}.}
+\end{table}
+
+The DTM NoData value is $-32767$, and its vertical accuracy between individual mosaics is better than 2.3~m at the 99th percentile \citep{usgs2024}. The products are distributed as GeoTIFFs under a CC0 license.
+
+\newpage
+
+%=========================================
+% 3. METHODS
+%=========================================
+\section{Methods}
+
+\subsection{Design Constraints}
+
+\begin{itemize}
+    \item \textbf{Maximum traversable slope}: 15\,\% ($\sim$8.5$^{\circ}$), treated as an absolute constraint (cells exceeding this value are excluded from the graph). The 12--15\,\% caution zone is penalized by a factor of $\times 2.5$ during route planning.
+    \item \textbf{Maximum negotiable obstacle}: 40~cm; boulder fields are penalized through the roughness measure.
+    \item \textbf{Base speed}: 2.5~km/h on flat terrain.
+    \item \textbf{Walk-back limit}: maximum radius of 3~km from point A.
+    \item \textbf{Gravity}: 3.71~m/s$^2$; suit mass 150~kg (inertia is conserved).
+\end{itemize}
+
+\subsection{Terrain Derivatives}
+
+Slope was calculated with the Horn operator on the DTM smoothed to a 3~m baseline (stride scale, which filters pixel noise). Roughness was estimated as the RMS of the topographic residual in a 5~m window, as a statistical indicator of sub-pixel boulder fields; it can be checked against the 25~cm orthoimage. Relative soil firmness was approximated using the THEMIS nighttime mosaic: high nighttime temperatures indicate consolidated material, while low temperatures indicate loose sand \citep{usgs2018}.
+
+\subsection{Cost Surface and Optimal Route}
+
+The travel cost per meter was defined as adjusted walking time:
+\begin{equation}
+c = \frac{1}{v(s)}\Bigl(1 + 0.3\,R_n + 0.2\,(1-F_n) + 1.0\,[\mathrm{conf}<10]\Bigr),
+\qquad v(s) = 2.5\,e^{-4s}~\text{km/h},
+\label{eq:costo}
+\end{equation}
+where $s$ is the slope (fraction), $R_n$ is normalized roughness, $F_n$ is normalized firmness, and $[\mathrm{conf}<10]$ is an indicator of low DTM confidence. The function $v(s)$ adapts Tobler's hiking function \citep{tobler1993} to the speed of an astronaut wearing a suit. The A$\to$B route was solved using a least-cost-path method (8-connected geometric MCP algorithm, equivalent to GRASS \texttt{r.cost}/\texttt{r.drain}); 15--120~min isochrones were derived as contours of accumulated cost from A.
+
+\newpage
+
+%=========================================
+% 4. RESULTS
+%=========================================
+\section{Results}
+
+\begin{itemize}
+    \item \textbf{A (base)}: $(4\,573\,123~\mathrm{E};\ 1\,080\,942~\mathrm{N})$, plain with a 1.0\,\% slope and more than 25~m of obstacle-free radius; $z = -2\,032$~m.
+    \item \textbf{B (target)}: $(4\,574\,762~\mathrm{E};\ 1\,083\,117~\mathrm{N})$, southwestern edge of the ejecta, local slope of 7.9\,\%, 950~m from the crater center; $z = -1\,924$~m.
+    \item \textbf{Route}: 3\,476~m (3D), 123~min outbound, $+137$~m ascent; mean slope of 6.3\,\% and maximum slope of 14.9\,\%; only 1\,\% of the route crosses the caution zone.
+    \item \textbf{Walk-back compliance}: maximum radius from A of 2\,723~m $<$ 3\,000~m.
+    \item \textbf{EVA budget}: $123' + 60'$ of science operations $+ 123' \approx 5$~h~10~min.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Route waypoints and travel times (outbound).}
+\label{tab:tiempos}
+\small
+\begin{tabular}{l r r r}
+\toprule
+\textbf{Point} & \textbf{Distance (m)} & \textbf{Time (min)} & \textbf{Elevation (m)} \\
+\midrule
+A    & 0      & 0   & $-2\,032$ \\
+W20  & 578    & 20  & $-2\,008$ \\
+W40  & 1\,124 & 40  & $-1\,976$ \\
+W60  & 1\,644 & 60  & $-1\,974$ \\
+W80  & 2\,136 & 80  & $-1\,934$ \\
+W100 & 2\,768 & 100 & $-1\,935$ \\
+W120 & 3\,395 & 120 & $-1\,931$ \\
+B    & 3\,476 & 123 & $-1\,924$ \\
+\bottomrule
+\end{tabular}
+\caption*{\textbf{Source:} Prepared by the authors.}
+\end{table}
+
+\figura{mapa_mision.png}{fig:mapa}{Mission map: 1 m HiRISE hillshade, NO-GO zones (slope $\geq 15\,\%$, red), least-cost route (green), 30--120 min isochrones, and 3 km walk-back limit.}{Prepared by the authors based on \citet{usgs2024}.}[0.8]
+
+\figura{perfil_ruta.png}{fig:perfil}{Topographic profile of route A$\to$B with local slope.}{Prepared by the authors.}[0.95]
+
+\newpage
+
+%=========================================
+% CONCLUSIONS
+%=========================================
+\section*{Conclusions}
+\addcontentsline{toc}{section}{Conclusions}
+
+\begin{itemize}
+    \item A reproducible QGIS GIS workflow transforms raw NASA orbital data into a concrete operational decision: where a human can safely walk on Mars.
+    \item Fusing topographic, optical, thermal, and data-quality information (Equation~\ref{eq:costo}) produces a route that simultaneously meets all imposed safety constraints: slope, walk-back range, and consumables budget.
+    \item The methodology can be transferred to any site on Mars with stereo HiRISE coverage, and selecting a fresh crater as the target demonstrates that safety and scientific return are not mutually exclusive.
+\end{itemize}
+
+\section*{Recommendations}
+\addcontentsline{toc}{section}{Recommendations}
+
+\begin{itemize}
+    \item Visually validate the 3.5~km route against the 25~cm orthoimage to rule out boulders larger than 40~cm, since roughness at 1~m is a statistical indicator rather than an individual-obstacle detection.
+    \item Use the CRISM spectral layer (FRT00005850) as regional mineralogical context: its valid swath runs immediately east of the AOI without reaching the target crater, showing that the area lacks targeted hyperspectral coverage and reinforcing its exploration value.
+    \item Consider space-weather data (radiation) when planning actual EVA launch windows.
+\end{itemize}
+
+\newpage
+
+%=========================================
+% APPENDICES
+%=========================================
+\appendix
+\section{Appendices}
+
+\subsection{Project Files}
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{5.6cm} >{\raggedright\arraybackslash}p{1.8cm} >{\raggedright\arraybackslash}p{8.1cm}}
+\caption{Files generated by the analysis.}\label{tab:archivos}\\
+\toprule
+\textbf{Layer / file} & \textbf{Type} & \textbf{Contents} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Layer / file} & \textbf{Type} & \textbf{Contents} \\
+\midrule
+\endhead
+\multicolumn{3}{l}{\textit{02\_procesado}}\\
+\texttt{dtm\_aoi\_1m\_nopred.tif} & Raster & HiRISE DTM clipped to the AOI (1 m). \\
+\texttt{orto\_aoi\_025m.tif} & Raster & HiRISE orthomosaic clipped to the AOI (25 cm). \\
+\texttt{slope\_3m\_pct\_x10\_u16.tif} & Raster & Slope (\% $\times$10, 3 m baseline). \\
+\texttt{roughness\_mm\_u16.tif} & Raster & 5 m RMS roughness (mm). \\
+\texttt{mask\_transitable.tif} & Raster & Traversability mask ($<$15\,\%). \\
+\texttt{cost\_mmin\_per\_m\_u16.tif} & Raster & Cost surface (mmin/m). \\
+\texttt{cumtime\_dmin\_desde\_A\_u16.tif} & Raster & Cumulative time from A (decimin). \\
+\texttt{themis\_*\_jezW\_100m.tif} & Raster & Reprojected day/night THEMIS IR. \\
+\multicolumn{3}{l}{\textit{03\_resultados}}\\
+\texttt{ruta\_eva.geojson} & Vector & A--B least-cost route. \\
+\texttt{puntos\_eva.geojson} & Vector & A, B, and waypoints every 20 min. \\
+\texttt{isocronas.geojson} & Vector & 15/30/60/90/120 min isochrones. \\
+\texttt{walkback\_3km.geojson} & Vector & 3 km walk-back limit. \\
+\texttt{curvas\_5m.gpkg} & Vector & Contour lines at 5 m intervals. \\
+\bottomrule
+\end{longtable}
+}
+
+\subsection{Core Cost Calculation}
+
+\begin{lstlisting}[style=estiloPython]
+v = (2500/60.0) * np.exp(-4.0 * slope_frac)      # m/min (adapted Tobler function)
+tpm = (1.0/v) * (1 + 0.3*Rn + 0.2*(1-Fn) + 1.0*(conf < 10))
+tpm[slope_pct >= 15] = np.inf                     # absolute NO-GO
+cum, tb = skimage.graph.MCP_Geometric(tpm).find_costs([A])
+ruta = MCP.traceback(B)                           # equivalent to r.drain
+\end{lstlisting}
+
+\newpage
+
+%=========================================
+% REFERENCES
+%=========================================
+\addcontentsline{toc}{section}{References}
+\begin{thebibliography}{99}
+
+\bibitem[McEwen et al.(2007)]{mcewen2007}
+McEwen, A. S., Eliason, E. M., Bergstrom, J. W., Bridges, N. T., Hansen, C. J., Delamere, W. A., \ldots{} Weitz, C. M. (2007). Mars Reconnaissance Orbiter's High Resolution Imaging Science Experiment (HiRISE). \emph{Journal of Geophysical Research, 112}(E5), E05S02. \url{https://doi.org/10.1029/2005JE002605}
+
+\bibitem[Tobler(1993)]{tobler1993}
+Tobler, W. (1993). \emph{Three presentations on geographical analysis and modeling} (Technical Report 93-1). National Center for Geographic Information and Analysis, University of California, Santa Barbara.
+
+\bibitem[U.S. Geological Survey(2018)]{usgs2018}
+U.S. Geological Survey, Astrogeology Science Center. (2018). \emph{THEMIS Day IR and Night IR Controlled Mosaics, 100 m v2} [Database]. NASA Mars Odyssey / Arizona State University. \url{https://astrogeology.usgs.gov}
+
+\bibitem[U.S. Geological Survey(2024)]{usgs2024}
+U.S. Geological Survey, Astrogeology Science Center. (2024). \emph{Mars Sample Return Terrain Relative Navigation HiRISE DTM and Orthoimage Mosaics} (v003) [Data set]. \url{https://doi.org/10.5066/P13CPYYU}
+
+\end{thebibliography}
+
+\end{document}

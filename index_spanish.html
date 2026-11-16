@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<!-- AI-GENERATED CODE: this interactive map application was written by Claude (Anthropic) as an AI assistant for Team AREO EVA, NASA Space Apps Challenge 2026. All map DATA are real NASA/USGS products (HiRISE MSR TRN mosaics DOI 10.5066/P13CPYYU, THEMIS Controlled Mosaics v2, CRISM FRT00005850); route and terrain analysis computed from those data in QGIS/Python. -->
+<meta charset="utf-8">
+<title>AREO EVA — Mapa interactivo de misión | Jezero W, Marte</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="assets/data.js"></script>
+<style>
+  html,body{margin:0;height:100%;font-family:'Segoe UI',system-ui,sans-serif;background:#0b0f0d}
+  #map{position:absolute;inset:0;background:#0b0f0d}
+  .panel{position:absolute;z-index:1000;background:rgba(7,19,13,.92);color:#bfffe0;
+         border:1px solid #19d98b;border-radius:10px;padding:10px 14px;font-size:13px}
+  #titulo{top:10px;left:50%;transform:translateX(-50%);text-align:center;font-weight:600;letter-spacing:.5px}
+  #titulo small{color:#5fd9a6;font-weight:400}
+  #info{bottom:10px;left:10px;max-width:270px}
+  #info table{border-collapse:collapse}
+  #info td{padding:1px 8px 1px 0;color:#9fffcf}
+  #info td:first-child{color:#5fd9a6}
+  #coords{bottom:10px;right:10px;font-family:monospace}
+  .leaflet-control-layers{background:rgba(7,19,13,.92)!important;color:#bfffe0!important;border:1px solid #19d98b!important}
+  .leaflet-control-layers label{color:#bfffe0}
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#07130d;color:#bfffe0;border:1px solid #19d98b}
+  .wplbl{background:transparent;border:none;box-shadow:none;color:#00e5ff;font-weight:700;font-size:11px;text-shadow:0 0 4px #000}
+  .leaflet-bar a{background:#07130d;color:#9fffcf;border-color:#19d98b}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel" id="titulo">AREO EVA — RUTA DE CAMINATA MARCIANA<br>
+<small>Borde occidental de Jezero (Neretva) · HiRISE 25 cm · DTM 1 m · THEMIS · CRISM · Datos: NASA/USGS (CC0) · <a href='index.html' style='color:#5fd9a6'>EN</a></small></div>
+<div class="panel" id="info">
+<b>Misión EVA A → B</b>
+<table>
+<tr><td>Ruta</td><td>3,476 m · 123 min (ida)</td></tr>
+<tr><td>Pendiente</td><td>media 6.3% · máx 14.9%</td></tr>
+<tr><td>Ascenso</td><td>+137 m</td></tr>
+<tr><td>Walk-back</td><td>radio máx 2,723 m ✓ (&lt;3 km)</td></tr>
+<tr><td>Objetivo</td><td>Ejecta de cráter fresco (~2 km)</td></tr>
+<tr><td>EVA total</td><td>≈ 5 h 10 min (60' ciencia)</td></tr>
+</table>
+</div>
+<div class="panel" id="coords">—</div>
+<script>
+const W=MISION.W, H=MISION.H, X0=MISION.X0, Y0=MISION.Y0;
+const ll=p=>[p[1],p[0]];                 // [y,x] local -> latlng
+const bounds=[[0,0],[H,W]];
+const map=L.map('map',{crs:L.CRS.Simple,minZoom:-3,maxZoom:4});
+map.fitBounds([[1500,1500],[5200,4800]]);
+
+const hill=L.imageOverlay('assets/hillshade.png',bounds);
+const orto=L.imageOverlay('assets/ortho.png',bounds);
+const slope=L.imageOverlay('assets/slope.png',bounds,{opacity:1});
+const nogo=L.imageOverlay('assets/nogo.png',bounds);
+const isot=L.imageOverlay('assets/isotime.png',bounds);
+const crism=L.imageOverlay('assets/crism_fal.png',
+  [[MISION.crism_bounds[0][1],MISION.crism_bounds[0][0]],[MISION.crism_bounds[1][1],MISION.crism_bounds[1][0]]],{opacity:.85});
+orto.addTo(map); nogo.addTo(map);
+
+const ruta=L.polyline(MISION.route.map(ll),{color:'#00ff6a',weight:3.5,opacity:.95}).addTo(map);
+ruta.bindPopup('<b>Ruta EVA de menor costo</b><br>3,476 m · 123 min · pend. máx 14.9%');
+const wback=L.polyline(MISION.walkback.map(ll),{color:'#ffffff',weight:1.5,dashArray:'6 6',opacity:.8}).addTo(map);
+wback.bindPopup('Límite walk-back: 3 km desde la base A');
+const colores={15:'#00e5ff',30:'#00b0ff',60:'#ffd600',90:'#ff9100',120:'#ff3d00'};
+const isoGroup=L.layerGroup(MISION.iso.map(f=>L.polyline(f.c.map(ll),{color:colores[f.t]||'#999',weight:1,opacity:.8})
+   .bindPopup('Isócrona '+f.t+' min desde A')));
+MISION.puntos.forEach(p=>{
+  const esAB=(p.id==='A'||p.id==='B');
+  const m=L.circleMarker(ll(p.ll),{radius:esAB?9:5,color:'#000',weight:1.5,
+      fillColor:p.id==='A'?'#00c853':(p.id==='B'?'#ffd600':'#00e5ff'),fillOpacity:1}).addTo(map);
+  m.bindPopup('<b>'+p.id+' — '+p.nombre+'</b><br>t = '+p.t+' min · z = '+p.z+' m');
+  if(esAB) m.bindTooltip(p.id,{permanent:true,direction:'right',className:'wplbl'});
+});
+L.control.layers(
+  {'Ortofoto HiRISE 25 cm':orto,'Hillshade (DTM 1 m)':hill},
+  {'Zonas NO-GO (pend ≥15%)':nogo,'Pendiente (%)':slope,'Tiempo desde A (isócronas raster)':isot,
+   'Isócronas (líneas)':isoGroup,'CRISM FRT00005850 (contexto mineral, 1 km E)':crism},
+  {collapsed:false}).addTo(map);
+L.control.scale({imperial:false}).addTo(map);
+map.on('mousemove',e=>{
+  const x=X0+e.latlng.lng, y=Y0+e.latlng.lat;
+  const lon=x/59274.697, lat=y/59274.697;
+  document.getElementById('coords').textContent=
+    'E '+x.toFixed(0)+'  N '+y.toFixed(0)+'  |  '+lat.toFixed(4)+'°N '+lon.toFixed(4)+'°E';
+});
+</script>
+</body>
+</html>
