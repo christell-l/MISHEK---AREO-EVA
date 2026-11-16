@@ -12,7 +12,7 @@ AREO EVA is a hyperlocal mission-planning map for the first Marswalks: a complet
 - **Route:** 3,476 m · 123 min one way · +137 m climb · max slope 14.9% (hard limit 15%) · walk-back radius 2,723 m < 3 km ✓ · full EVA ≈ 5 h 10 min.
 
 ## Method (reproducible)
-Slope (Horn, 3 m baseline) + RMS roughness (5 m) + THEMIS night-IR soil firmness + USGS DTM confidence → fused into a **walking-time cost surface** (Tobler-type speed adapted to a suited astronaut, 2.5 km/h flat) → **Least Cost Path** (r.cost/r.drain equivalent) → 15–120 min isochrones and walk-back envelope. Full methodology in [`report/report_eva.pdf`](report_eva.pdf) (Spanish).
+Slope (Horn, 3 m baseline) + RMS roughness (5 m) + THEMIS night-IR soil firmness + USGS DTM confidence → fused into a **walking-time cost surface** (Tobler-type speed adapted to a suited astronaut, 2.5 km/h flat) → **Least Cost Path** (r.cost/r.drain equivalent) → 15–120 min isochrones and walk-back envelope. Full methodology in [`report\report_eva.pdf`](report\report_eva.pdf) (Spanish).
 
 ## Repository contents
 | Path | Content |
